@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="tr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Omniquart Bot</title>
+<style>
+:root{--bg:#0e1a1f;--pn:#15262d;--ln:#243b44;--tx:#e6efe9;--mu:#8aa3a0;--up:#4fd1a5;--dn:#ff7a6b;--ac:#f2c14e;font-family:Georgia,'Times New Roman',serif}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);padding:16px;max-width:1100px;margin:auto}
+h1{font-size:28px;margin:0;font-weight:400;letter-spacing:.5px}h2{font-size:16px;margin:0 0 8px;font-weight:600}
+.sub{color:var(--mu);font-size:13px;margin:2px 0 14px;font-family:system-ui,sans-serif}
+.top{display:flex;flex-wrap:wrap;gap:12px;align-items:end;justify-content:space-between;margin-bottom:12px}
+.big{font:600 44px/1 'Courier New',monospace}.big small{font-size:14px;color:var(--mu);font-weight:400}
+.kpis{display:flex;gap:22px;flex-wrap:wrap;font-family:system-ui,sans-serif;font-size:13px;color:var(--mu)}
+.kpis b{display:block;font:600 17px 'Courier New',monospace;color:var(--tx)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:800px){.grid{grid-template-columns:1fr}}
+.pn{background:var(--pn);border:1px solid var(--ln);border-radius:6px;padding:12px;overflow-x:auto}
+table{width:100%;border-collapse:collapse;font:13px 'Courier New',monospace;white-space:nowrap}
+th{color:var(--mu);font:12px system-ui,sans-serif;text-align:left;padding:4px 8px 4px 0;font-weight:500}td{padding:5px 8px 5px 0;border-top:1px solid var(--ln)}
+.up{color:var(--up)}.dn{color:var(--dn)}.mu{color:var(--mu)}
+button{background:var(--ac);color:#1b1500;border:0;border-radius:4px;padding:8px 14px;font:600 13px system-ui;cursor:pointer}
+button.g{background:transparent;color:var(--tx);border:1px solid var(--ln)}button:focus-visible{outline:2px solid var(--tx)}
+canvas{width:100%;height:120px;display:block}
+#log{max-height:220px;overflow:auto;font:12px 'Courier New',monospace;line-height:1.6}
+.warn{font:12px system-ui;color:var(--mu);margin-top:12px}#st{color:var(--ac)}
+</style></head><body>
+<div class="top"><div><h1>Omniquart</h1><div class="sub">Binance Futures verisi · simülasyon (paper trading) · 10x kaldıraç · <span id="st">başlatılıyor…</span></div></div>
+<div><button id="tg">Duraklat</button> <button class="g" id="rs">Sıfırla (200 USDT)</button></div></div>
+
+<div class="pn" style="margin-bottom:12px"><div class="top" style="margin:0">
+<div class="big"><span id="eq">200.00</span> <small>USDT toplam varlık</small></div>
+<div class="kpis"><div>Serbest bakiye<b id="bal">200.00</b></div><div>Gerçekleşmemiş K/Z<b id="upl">0.00</b></div><div>Kapanan işlem<b id="cnt">0</b></div><div>Kazanma oranı<b id="wr">–</b></div></div></div>
+<canvas id="cv" width="1000" height="120"></canvas></div>
+
+<div class="grid">
+<div class="pn"><h2>Açık pozisyonlar</h2><table><thead><tr><th>Sembol</th><th>Yön</th><th>Giriş</th><th>Anlık</th><th>Marjin</th><th>K/Z</th><th>ROE</th></tr></thead><tbody id="pos"></tbody></table></div>
+<div class="pn"><h2>Sinyal analizi</h2><div style="max-height:320px;overflow:auto"><table><thead><tr><th>Sembol</th><th>Fiyat</th><th>RSI</th><th>Trend</th><th>MACD</th><th>BB</th><th>Hacim</th><th>Skor</th></tr></thead><tbody id="sig"></tbody></table></div></div>
+</div>
+<div class="pn" style="margin-top:12px"><h2>İşlem günlüğü</h2><div id="log"></div></div>
+<div class="warn">Strateji: 5dk mumlarda EMA9/21 trendi, RSI14, MACD histogramı, Bollinger konumu ve hacim artışı birlikte puanlanır (−5…+5). Skor ≥ +3 LONG, ≤ −3 SHORT açar; ters sinyal, %30 ROE kâr al, %15 ROE zarar kes veya tasfiye ile kapanır. Marjin: işlem başına sabit 20 USDT, en fazla 7 pozisyon, 30 coin taranır, taker komisyon %0.04. Gerçek emir gönderilmez; yatırım tavsiyesi değildir.</div>
+
+<script>
+const SYMS=['BTCUSDT','ETHUSDT','BNBUSDT','SOLUSDT','XRPUSDT','DOGEUSDT','ADAUSDT','AVAXUSDT','LINKUSDT','TRXUSDT','DOTUSDT','LTCUSDT','BCHUSDT','NEARUSDT','UNIUSDT','ATOMUSDT','ETCUSDT','APTUSDT','ARBUSDT','OPUSDT','FILUSDT','INJUSDT','SUIUSDT','AAVEUSDT','HBARUSDT','TONUSDT','SEIUSDT','TIAUSDT','RUNEUSDT','ICPUSDT'],LEV=10,START=200,FEE=.0004,TP=.30,SL=-.15,MAXPOS=7,KEY='omniquart_v1';
+const API='https://fapi.binance.com/fapi/v1/';
+let S=JSON.parse(localStorage.getItem(KEY)||'null')||fresh(),sig={},paused=false;
+function fresh(){return{bal:START,pos:{},closed:[],log:[],curve:[[Date.now(),START]]}}
+const $=i=>document.getElementById(i),f=(n,d=2)=>Number(n).toFixed(d),cl=n=>n>=0?'up':'dn';
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const log=m=>{S.log.unshift(new Date().toLocaleTimeString('tr-TR')+'  '+m);S.log=S.log.slice(0,80)};
+
+function ema(a,p){const k=2/(p+1);let e=a[0];return a.map(v=>e=v*k+e*(1-k))}
+function rsi(c,p=14){let g=0,l=0;for(let i=1;i<=p;i++){const d=c[i]-c[i-1];d>0?g+=d:l-=d}g/=p;l/=p;
+ for(let i=p+1;i<c.length;i++){const d=c[i]-c[i-1];g=(g*(p-1)+Math.max(d,0))/p;l=(l*(p-1)+Math.max(-d,0))/p}return l==0?100:100-100/(1+g/l)}
+function analyze(k){
+ const c=k.map(x=>+x[4]),v=k.map(x=>+x[5]),n=c.length-1;
+ const e9=ema(c,9),e21=ema(c,21),m=ema(c,12).map((x,i)=>x-ema(c,26)[i]),sg=ema(m,9),h=m[n]-sg[n],hp=m[n-1]-sg[n-1];
+ const r=rsi(c),w=c.slice(-20),mean=w.reduce((a,b)=>a+b)/20,sd=Math.sqrt(w.reduce((a,b)=>a+(b-mean)**2,0)/20),bb=sd?(c[n]-mean)/(2*sd):0;
+ const va=v.slice(-21,-1).reduce((a,b)=>a+b)/20,vr=v[n-1]/va;
+ let s=0,tr=e9[n]>e21[n]?1:-1;s+=tr;
+ s+=h>0?(h>hp?1:.5):(h<hp?-1:-.5);
+ s+=r<30?1.5:r>70?-1.5:r>55?.5:r<45?-.5:0;
+ s+=bb<-.9?1:bb>.9?-1:0;
+ s+=vr>1.5?Math.sign(c[n]-c[n-1])*1:0;
+ return{price:c[n],r,tr,h,bb,vr,score:Math.max(-5,Math.min(5,Math.round(s*2)/2))}}
+
+async function getJSON(u){const r=await fetch(u);if(!r.ok)throw new Error(r.status);return r.json()}
+async function tick(){
+ if(paused)return;
+ try{
+  const ks=await Promise.all(SYMS.map(s=>getJSON(`${API}klines?symbol=${s}&interval=5m&limit=100`).catch(()=>null)));
+  SYMS.forEach((s,i)=>{if(ks[i])sig[s]=analyze(ks[i])});
+  $('st').textContent='canlı · '+new Date().toLocaleTimeString('tr-TR');
+  trade();
+ }catch(e){$('st').textContent='bağlantı hatası: '+e.message+' (sayfayı yerel dosya olarak aç)'}
+ render()}
+
+function pnl(p,px){return(px-p.entry)*p.qty*p.dir}
+function close(s,why){const p=S.pos[s],px=sig[s].price,g=pnl(p,px),fee=px*p.qty*FEE,net=g-fee;
+ S.bal+=p.margin+net;S.closed.push(net);delete S.pos[s];
+ log(`KAPAT ${p.dir>0?'LONG':'SHORT'} ${s} @${f(px,4)} · ${why} · ${net>=0?'+':''}${f(net)} USDT`)}
+function open(s,dir){const margin=20;if(S.bal<margin*(1+LEV*FEE)+.01)return;
+ const px=sig[s].price,not=margin*LEV,qty=not/px,fee=not*FEE;
+ S.bal-=margin+fee;S.pos[s]={dir,entry:px,qty,margin,t:Date.now()};
+ log(`AÇ ${dir>0?'LONG':'SHORT'} ${s} @${f(px,4)} · marjin ${f(margin)} · ${LEV}x · skor ${sig[s].score}`)}
+function trade(){
+ for(const s of Object.keys(S.pos)){const p=S.pos[s],px=sig[s].price,roe=pnl(p,px)/p.margin;
+  if(roe<=-.9)close(s,'TASFİYE');else if(roe>=TP)close(s,'kâr al');else if(roe<=SL)close(s,'zarar kes');
+  else if(sig[s].score*p.dir<=-2)close(s,'ters sinyal')}
+ const cand=SYMS.filter(s=>sig[s]&&!S.pos[s]&&Math.abs(sig[s].score)>=3).sort((a,b)=>Math.abs(sig[b].score)-Math.abs(sig[a].score));
+ for(const s of cand){if(Object.keys(S.pos).length>=MAXPOS)break;open(s,sig[s].score>0?1:-1)}
+ S.curve.push([Date.now(),equity()]);S.curve=S.curve.slice(-600);save()}
+function equity(){let e=S.bal;for(const s in S.pos){const p=S.pos[s];e+=p.margin+(sig[s]?pnl(p,sig[s].price):0)}return e}
+
+function render(){
+ const eq=equity(),u=Object.keys(S.pos).reduce((a,s)=>a+(sig[s]?pnl(S.pos[s],sig[s].price):0),0),w=S.closed.filter(x=>x>0).length;
+ $('eq').textContent=f(eq);$('eq').className=cl(eq-START);$('bal').textContent=f(S.bal);
+ $('upl').textContent=f(u);$('upl').className=cl(u);$('cnt').textContent=S.closed.length;
+ $('wr').textContent=S.closed.length?f(w/S.closed.length*100,0)+'%':'–';
+ $('pos').innerHTML=Object.keys(S.pos).map(s=>{const p=S.pos[s],px=sig[s]?sig[s].price:p.entry,g=pnl(p,px);
+  return`<tr><td>${s.replace('USDT','')}</td><td class="${p.dir>0?'up':'dn'}">${p.dir>0?'LONG':'SHORT'}</td><td>${f(p.entry,4)}</td><td>${f(px,4)}</td><td>${f(p.margin)}</td><td class="${cl(g)}">${f(g)}</td><td class="${cl(g)}">${f(g/p.margin*100,1)}%</td></tr>`}).join('')||'<tr><td colspan="7" class="mu">Açık pozisyon yok, sinyal bekleniyor.</td></tr>';
+ $('sig').innerHTML=SYMS.filter(s=>sig[s]).map(s=>{const x=sig[s];
+  return`<tr><td>${s.replace('USDT','')}</td><td>${f(x.price,x.price<10?4:2)}</td><td>${f(x.r,0)}</td><td class="${x.tr>0?'up':'dn'}">${x.tr>0?'yukarı':'aşağı'}</td><td class="${cl(x.h)}">${x.h>0?'+':'−'}</td><td>${f(x.bb,2)}</td><td>${f(x.vr,1)}x</td><td class="${cl(x.score)}"><b>${x.score>0?'+':''}${x.score}</b></td></tr>`}).join('');
+ $('log').innerHTML=S.log.map(l=>`<div>${l}</div>`).join('')||'<span class="mu">Henüz işlem yok.</span>';
+ chart()}
+function chart(){const c=$('cv'),g=c.getContext('2d'),d=S.curve,W=c.width,H=c.height;g.clearRect(0,0,W,H);if(d.length<2)return;
+ const ys=d.map(x=>x[1]),mn=Math.min(...ys,START)-.5,mx=Math.max(...ys,START)+.5,Y=v=>H-8-(v-mn)/(mx-mn)*(H-16);
+ g.strokeStyle='#243b44';g.setLineDash([4,4]);g.beginPath();g.moveTo(0,Y(START));g.lineTo(W,Y(START));g.stroke();g.setLineDash([]);
+ g.strokeStyle=ys[ys.length-1]>=START?'#4fd1a5':'#ff7a6b';g.lineWidth=2;g.beginPath();d.forEach((p,i)=>{const x=i/(d.length-1)*W;i?g.lineTo(x,Y(p[1])):g.moveTo(x,Y(p[1]))});g.stroke()}
+
+$('tg').onclick=()=>{paused=!paused;$('tg').textContent=paused?'Devam et':'Duraklat';$('st').textContent=paused?'duraklatıldı':'canlı'};
+$('rs').onclick=()=>{if(confirm('Tüm işlemler silinip bakiye 200 USDT olacak. Emin misin?')){S=fresh();save();render()}};
+render();tick();setInterval(tick,15000);
+</script></body></html>
