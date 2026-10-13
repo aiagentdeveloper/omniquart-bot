@@ -28,6 +28,7 @@ canvas{width:100%;height:120px;display:block}
 <div class="pn" style="margin-bottom:12px"><div class="top" style="margin:0">
 <div class="big"><span id="eq">200.00</span> <small>USDT toplam varlık</small></div>
 <div class="kpis"><div>Serbest bakiye<b id="bal">200.00</b></div><div>Gerçekleşmemiş K/Z<b id="upl">0.00</b></div><div>Kapanan işlem<b id="cnt">0</b></div><div>Kazanma oranı<b id="wr">–</b></div></div></div>
+<div class="mu" id="realizedPnL">Gerçekleşmiş K/Z: --</div>
 <canvas id="cv" width="1000" height="120"></canvas></div>
 
 <div class="grid">
@@ -94,8 +95,10 @@ function render(){
  $('eq').textContent=f(eq);$('eq').className=cl(eq-START);$('bal').textContent=f(S.bal);
  $('upl').textContent=f(u);$('upl').className=cl(u);$('cnt').textContent=S.closed.length;
  $('wr').textContent=S.closed.length?f(w/S.closed.length*100,0)+'%':'–';
+ const realized = S.closed.reduce((a,b)=>a+b,0);
+ $('realizedPnL').textContent = f(realized) + (realized>=0?'+':'');
  $('pos').innerHTML=Object.keys(S.pos).map(s=>{const p=S.pos[s],px=sig[s]?sig[s].price:p.entry,g=pnl(p,px);
-  return`<tr><td>${s.replace('USDT','')}</td><td class="${p.dir>0?'up':'dn'}">${p.dir>0?'LONG':'SHORT'}</td><td>${f(p.entry,4)}</td><td>${f(px,4)}</td><td>${f(p.margin)}</td><td class="${cl(g)}">${f(g)}</td><td class="${cl(g)}">${f(g/p.margin*100,1)}%</td></tr>`}).join('')||'<tr><td colspan="7" class="mu">Açık pozisyon yok, sinyal bekleniyor.</td></tr>';
+  return`<tr><td>${s.replace('USDT','')}</td><td class="${p.dir>0?'up':'dn'}">${p.dir>0?'LONG':'SHORT'}</td><td>${f(p.entry,4)}</td><td>${f(px,4)}</td><td>${f(p.margin)}</td><td class="${cl(g)}">${f(g)}</td><td class="${cl(g)}">${f(g/p.margin*100,1)}%</td><td style="width:1%;white-space:nowrap;"><button onclick="close('${s}', 'manuel')">Kapat</button></td></tr>`}).join('')||'<tr><td colspan="7" class="mu">Açık pozisyon yok, sinyal bekleniyor.</td></tr>';
  $('sig').innerHTML=SYMS.filter(s=>sig[s]).map(s=>{const x=sig[s];
   return`<tr><td>${s.replace('USDT','')}</td><td>${f(x.price,x.price<10?4:2)}</td><td>${f(x.r,0)}</td><td class="${x.tr>0?'up':'dn'}">${x.tr>0?'yukarı':'aşağı'}</td><td class="${cl(x.h)}">${x.h>0?'+':'−'}</td><td>${f(x.bb,2)}</td><td>${f(x.vr,1)}x</td><td class="${cl(x.score)}"><b>${x.score>0?'+':''}${x.score}</b></td></tr>`}).join('');
  $('log').innerHTML=S.log.map(l=>`<div>${l}</div>`).join('')||'<span class="mu">Henüz işlem yok.</span>';
@@ -107,5 +110,5 @@ function chart(){const c=$('cv'),g=c.getContext('2d'),d=S.curve,W=c.width,H=c.he
 
 $('tg').onclick=()=>{paused=!paused;$('tg').textContent=paused?'Devam et':'Duraklat';$('st').textContent=paused?'duraklatıldı':'canlı'};
 $('rs').onclick=()=>{if(confirm('Tüm işlemler silinip bakiye 200 USDT olacak. Emin misin?')){S=fresh();save();render()}};
-render();tick();setInterval(tick,15000);
+render();tick();setInterval(tick,15000);setInterval(trade,3000);
 </script></body></html>
