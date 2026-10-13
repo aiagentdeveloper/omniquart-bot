@@ -74,9 +74,7 @@ async function tick(){
  render()}
 
 function pnl(p,px){return(px-p.entry)*p.qty*p.dir}
-function close(s,why){const p=S.pos[s],px=sig[s].price,g=pnl(p,px),fee=px*p.qty*FEE,net=g-fee;
- S.bal+=p.margin+net;S.closed.push(net);delete S.pos[s];
- log(`KAPAT ${p.dir>0?'LONG':'SHORT'} ${s} @${f(px,4)} · ${why} · ${net>=0?'+':''}${f(net)} USDT`)}
+function close(s,why){const p=S.pos[s];if(!p)return;const px=sig[s]?sig[s].price:p.entry;const g=pnl(p,px),fee=px*p.qty*FEE,net=g-fee;S.bal+=p.margin+net;S.closed.push(net);delete S.pos[s];log(`KAPAT ${p.dir>0?'LONG':'SHORT'} ${s} @${f(px,4)} · ${why} · ${net>=0?'+':''}${f(net)} USDT`)}
 function open(s,dir){const margin=20;if(S.bal<margin*(1+LEV*FEE)+.01)return;
  const px=sig[s].price,not=margin*LEV,qty=not/px,fee=not*FEE;
  S.bal-=margin+fee;S.pos[s]={dir,entry:px,qty,margin,t:Date.now()};
