@@ -36,10 +36,10 @@ canvas{width:100%;height:120px;display:block}
 <div class="pn"><h2>Sinyal analizi</h2><div style="max-height:320px;overflow:auto"><table><thead><tr><th>Sembol</th><th>Fiyat</th><th>RSI</th><th>Trend</th><th>MACD</th><th>BB</th><th>Hacim</th><th>Skor</th></tr></thead><tbody id="sig"></tbody></table></div></div>
 </div>
 <div class="pn" style="margin-top:12px"><h2>İşlem günlüğü</h2><div id="log"></div></div>
-<div class="warn">Strateji: 5dk mumlarda EMA9/21 trendi, RSI14, MACD histogramı, Bollinger konumu ve hacim artışı birlikte puanlanır (−5…+5). Skor ≥ +3 LONG, ≤ −3 SHORT açar; ters sinyal, %30 ROE kâr al, %15 ROE zarar kes veya tasfiye ile kapanır. Marjin: işlem başına sabit 20 USDT, en fazla 7 pozisyon, 30 coin taranır, taker komisyon %0.04. Gerçek emir gönderilmez; yatırım tavsiyesi değildir.</div>
+<div class="warn">Strateji: 5dk mumlarda EMA9/21 trendi, RSI14, MACD histogramı, Bollinger konumu ve hacim artışı birlikte puanlanır (−5…+5). Skor ≥ +3 LONG, ≤ −3 SHORT açar; ters sinyal, %15 ROE kâr al, %15 ROE zarar kes veya tasfiye ile kapanır. Marjin: işlem başına sabit 20 USDT, en fazla 7 pozisyon, 30 coin taranır, taker komisyon %0.04. Gerçek emir gönderilmez; yatırım tavsiyesi değildir.</div>
 
 <script>
-const SYMS=['BTCUSDT','ETHUSDT','BNBUSDT','SOLUSDT','XRPUSDT','DOGEUSDT','ADAUSDT','AVAXUSDT','LINKUSDT','TRXUSDT','DOTUSDT','LTCUSDT','BCHUSDT','NEARUSDT','UNIUSDT','ATOMUSDT','ETCUSDT','APTUSDT','ARBUSDT','OPUSDT','FILUSDT','INJUSDT','SUIUSDT','AAVEUSDT','HBARUSDT','TONUSDT','SEIUSDT','TIAUSDT','RUNEUSDT','ICPUSDT'],LEV=10,START=200,FEE=.0004,TP=.30,SL=-.15,MAXPOS=7,KEY='omniquart_v1';
+const SYMS=['BTCUSDT','ETHUSDT','BNBUSDT','SOLUSDT','XRPUSDT','DOGEUSDT','ADAUSDT','AVAXUSDT','LINKUSDT','TRXUSDT','DOTUSDT','LTCUSDT','BCHUSDT','NEARUSDT','UNIUSDT','ATOMUSDT','ETCUSDT','APTUSDT','ARBUSDT','OPUSDT','FILUSDT','INJUSDT','SUIUSDT','AAVEUSDT','HBARUSDT','TONUSDT','SEIUSDT','TIAUSDT','RUNEUSDT','ICPUSDT'],LEV=10,START=200,FEE=.0004,TP=.15,SL=-.15,MAXPOS=7,KEY='omniquart_v1';
 const API='https://fapi.binance.com/fapi/v1/';
 let S=JSON.parse(localStorage.getItem(KEY)||'null')||fresh(),sig={},paused=false;
 function fresh(){return{bal:START,pos:{},closed:[],log:[],curve:[[Date.now(),START]]}}
