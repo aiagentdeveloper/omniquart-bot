@@ -32,7 +32,7 @@ canvas{width:100%;height:120px;display:block}
 <canvas id="cv" width="1000" height="120"></canvas></div>
 
 <div class="grid">
-<div class="pn"><h2>Açık pozisyonlar</h2><table><thead><tr><th>Sembol</th><th>Yön</th><th>Giriş</th><th>Anlık</th><th>Marjin</th><th>K/Z</th><th>ROE</th></tr></thead><tbody id="pos"></tbody></table></div>
+<div class="pn"><h2>Açık pozisyonlar</h2><table><thead><tr><th>Sembol</th><th>Yön</th><th>Giriş</th><th>Anlık</th><th>Marjin</th><th>K/Z</th><th>ROE</th><th></th></tr></thead><tbody id="pos"></tbody></table></div>
 <div class="pn"><h2>Sinyal analizi</h2><div style="max-height:320px;overflow:auto"><table><thead><tr><th>Sembol</th><th>Fiyat</th><th>RSI</th><th>Trend</th><th>MACD</th><th>BB</th><th>Hacim</th><th>Skor</th></tr></thead><tbody id="sig"></tbody></table></div></div>
 </div>
 <div class="pn" style="margin-top:12px"><h2>İşlem günlüğü</h2><div id="log"></div></div>
@@ -74,15 +74,15 @@ async function tick(){
  render()}
 
 function pnl(p,px){return(px-p.entry)*p.qty*p.dir}
-function close(s,why){try{const p=S.pos[s];if(!p)return;const px=sig[s]?sig[s].price:p.entry;const g=pnl(p,px),fee=px*p.qty*FEE,net=g-fee;S.bal+=p.margin+net;S.closed.push(net);delete S.pos[s];log(`KAPAT ${p.dir>0?'LONG':'SHORT'} ${s} @${f(px,4)} · ${why} · ${net>=0?'+':''}${f(net)} USDT`)}catch(e){window.alert('Close hatası: '+e.message)}}
+function closePos(s,why){try{const p=S.pos[s];if(!p)return;const px=sig[s]?sig[s].price:p.entry;const g=pnl(p,px),fee=px*p.qty*FEE,net=g-fee;S.bal+=p.margin+net;S.closed.push(net);delete S.pos[s];log(`KAPAT ${p.dir>0?'LONG':'SHORT'} ${s} @${f(px,4)} · ${why} · ${net>=0?'+':''}${f(net)} USDT`)}catch(e){window.alert('Close hatası: '+e.message)}}
 function open(s,dir){const margin=20;if(S.bal<margin*(1+LEV*FEE)+.01)return;
  const px=sig[s].price,not=margin*LEV,qty=not/px,fee=not*FEE;
  S.bal-=margin+fee;S.pos[s]={dir,entry:px,qty,margin,t:Date.now()};
  log(`AÇ ${dir>0?'LONG':'SHORT'} ${s} @${f(px,4)} · marjin ${f(margin)} · ${LEV}x · skor ${sig[s].score}`)}
 function trade(){
- for(const s of Object.keys(S.pos)){const p=S.pos[s],px=sig[s].price,roe=pnl(p,px)/p.margin;
-  if(roe<=-.9)close(s,'TASFİYE');else if(roe>=TP)close(s,'kâr al');else if(roe<=SL)close(s,'zarar kes');
-  else if(sig[s].score*p.dir<=-2)close(s,'ters sinyal')}
+ for(const s of Object.keys(S.pos)){if(!sig[s])continue;const p=S.pos[s],px=sig[s].price,roe=pnl(p,px)/p.margin;
+  if(roe<=-.9)closePos(s,'TASFİYE');else if(roe>=TP)closePos(s,'kâr al');else if(roe<=SL)closePos(s,'zarar kes');
+  else if(sig[s].score*p.dir<=-2)closePos(s,'ters sinyal')}
  const cand=SYMS.filter(s=>sig[s]&&!S.pos[s]&&Math.abs(sig[s].score)>=3).sort((a,b)=>Math.abs(sig[b].score)-Math.abs(sig[a].score));
  for(const s of cand){if(Object.keys(S.pos).length>=MAXPOS)break;open(s,sig[s].score>0?1:-1)}
  S.curve.push([Date.now(),equity()]);S.curve=S.curve.slice(-600);save()}
@@ -96,7 +96,7 @@ function render(){
  const realized = S.closed.reduce((a,b)=>a+b,0);
  $('realizedPnL').textContent = f(realized) + (realized>=0?'+':'');
  $('pos').innerHTML=Object.keys(S.pos).map(s=>{const p=S.pos[s],px=sig[s]?sig[s].price:p.entry,g=pnl(p,px);
-  return`<tr><td>${s.replace('USDT','')}</td><td class="${p.dir>0?'up':'dn'}">${p.dir>0?'LONG':'SHORT'}</td><td>${f(p.entry,4)}</td><td>${f(px,4)}</td><td>${f(p.margin)}</td><td class="${cl(g)}">${f(g)}</td><td class="${cl(g)}">${f(g/p.margin*100,1)}%</td><td style="width:1%;white-space:nowrap;"><button onclick="close('${s}', 'manuel')">Kapat</button></td></tr>`}).join('')||'<tr><td colspan="7" class="mu">Açık pozisyon yok, sinyal bekleniyor.</td></tr>';
+  return`<tr><td>${s.replace('USDT','')}</td><td class="${p.dir>0?'up':'dn'}">${p.dir>0?'LONG':'SHORT'}</td><td>${f(p.entry,4)}</td><td>${f(px,4)}</td><td>${f(p.margin)}</td><td class="${cl(g)}">${f(g)}</td><td class="${cl(g)}">${f(g/p.margin*100,1)}%</td><td style="width:1%;white-space:nowrap;"><button class="cl-btn" data-sym="${s}">Kapat</button></td></tr>`}).join('')||'<tr><td colspan="8" class="mu">Açık pozisyon yok, sinyal bekleniyor.</td></tr>';
  $('sig').innerHTML=SYMS.filter(s=>sig[s]).map(s=>{const x=sig[s];
   return`<tr><td>${s.replace('USDT','')}</td><td>${f(x.price,x.price<10?4:2)}</td><td>${f(x.r,0)}</td><td class="${x.tr>0?'up':'dn'}">${x.tr>0?'yukarı':'aşağı'}</td><td class="${cl(x.h)}">${x.h>0?'+':'−'}</td><td>${f(x.bb,2)}</td><td>${f(x.vr,1)}x</td><td class="${cl(x.score)}"><b>${x.score>0?'+':''}${x.score}</b></td></tr>`}).join('');
  $('log').innerHTML=S.log.map(l=>`<div>${l}</div>`).join('')||'<span class="mu">Henüz işlem yok.</span>';
@@ -106,6 +106,7 @@ function chart(){const c=$('cv'),g=c.getContext('2d'),d=S.curve,W=c.width,H=c.he
  g.strokeStyle='#243b44';g.setLineDash([4,4]);g.beginPath();g.moveTo(0,Y(START));g.lineTo(W,Y(START));g.stroke();g.setLineDash([]);
  g.strokeStyle=ys[ys.length-1]>=START?'#4fd1a5':'#ff7a6b';g.lineWidth=2;g.beginPath();d.forEach((p,i)=>{const x=i/(d.length-1)*W;i?g.lineTo(x,Y(p[1])):g.moveTo(x,Y(p[1]))});g.stroke()}
 
+$('pos').addEventListener('click',e=>{const b=e.target.closest('.cl-btn');if(!b)return;closePos(b.dataset.sym,'manuel');save();render()});
 $('tg').onclick=()=>{paused=!paused;$('tg').textContent=paused?'Devam et':'Duraklat';$('st').textContent=paused?'duraklatıldı':'canlı'};
 $('rs').onclick=()=>{if(confirm('Tüm işlemler silinip bakiye 200 USDT olacak. Emin misin?')){S=fresh();save();render()}};
 render();tick();setInterval(tick,15000);setInterval(trade,3000);
