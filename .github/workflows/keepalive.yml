@@ -1,0 +1,13 @@
+name: keepalive
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Render service so the free instance stays awake
+        run: curl -fsS -m 60 https://omniquart-bot.onrender.com/healthz || true
