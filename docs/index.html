@@ -23,30 +23,33 @@ canvas{width:100%;height:120px;display:block}
 .warn{font:12px system-ui;color:var(--mu);margin-top:12px}#st{color:var(--ac)}
 </style></head><body>
 <div class="top"><div><h1>Omniquart</h1><div class="sub">Binance Futures verisi · simülasyon (paper trading) · 10x kaldıraç · <span id="st">başlatılıyor…</span></div></div>
-<div><button id="tg">Duraklat</button> <button class="g" id="rs">Sıfırla (200 USDT)</button></div></div>
+<div><button id="tg">Duraklat</button> <button class="g" id="rs">Sıfırla</button></div></div>
 
 <div class="pn" style="margin-bottom:12px"><div class="top" style="margin:0">
-<div class="big"><span id="eq">200.00</span> <small>USDT toplam varlık</small></div>
-<div class="kpis"><div>Serbest bakiye<b id="bal">200.00</b></div><div>Gerçekleşmemiş K/Z<b id="upl">0.00</b></div><div>Kapanan işlem<b id="cnt">0</b></div><div>Kazanma oranı<b id="wr">–</b></div></div></div>
+<div class="big"><span id="eq">0.00</span> <small>USDT toplam varlık</small></div>
+<div class="kpis"><div>Serbest bakiye<b id="bal">0.00</b></div><div>Gerçekleşmemiş K/Z (net)<b id="upl">0.00</b></div><div>Kapanan işlem<b id="cnt">0</b></div><div>Kazanma oranı<b id="wr">–</b></div></div></div>
 <div class="mu" id="realizedPnL">Gerçekleşmiş K/Z: --</div>
 <canvas id="cv" width="1000" height="120"></canvas></div>
 
 <div class="grid">
-<div class="pn"><h2>Açık pozisyonlar</h2><table><thead><tr><th>Sembol</th><th>Yön</th><th>Giriş</th><th>Anlık</th><th>Marjin</th><th>K/Z</th><th>ROE</th><th></th></tr></thead><tbody id="pos"></tbody></table></div>
+<div class="pn"><h2>Açık pozisyonlar</h2><table><thead><tr><th>Sembol</th><th>Yön</th><th>Giriş</th><th>Anlık</th><th>Marjin</th><th>Net K/Z</th><th>ROE</th><th></th></tr></thead><tbody id="pos"></tbody></table></div>
 <div class="pn"><h2>Sinyal analizi</h2><div style="max-height:320px;overflow:auto"><table><thead><tr><th>Sembol</th><th>Fiyat</th><th>RSI</th><th>Trend</th><th>MACD</th><th>BB</th><th>Hacim</th><th>Skor</th></tr></thead><tbody id="sig"></tbody></table></div></div>
 </div>
 <div class="pn" style="margin-top:12px"><h2>İşlem günlüğü</h2><div id="log"></div></div>
-<div class="warn">Strateji: 5dk mumlarda EMA9/21 trendi, RSI14, MACD histogramı, Bollinger konumu ve hacim artışı birlikte puanlanır (−5…+5). Skor ≥ +3 LONG, ≤ −3 SHORT açar; ters sinyal, %15 ROE kâr al, %15 ROE zarar kes veya tasfiye ile kapanır. Marjin: işlem başına sabit 20 USDT, en fazla 10 pozisyon, 50 coin taranır, taker komisyon %0.04. Gerçek emir gönderilmez; yatırım tavsiyesi değildir.</div>
+<div class="warn">Strateji: 5dk mumlarda EMA9/21 trendi, RSI14, MACD histogramı, Bollinger konumu ve hacim artışı birlikte puanlanır (−5…+5). Skor ≥ +3 LONG, ≤ −3 SHORT açar. Pozisyon yalnızca net +1 USDT kâr (kâr al), net −1.5 USDT zarar (zarar kes) veya tasfiye ile kapanır; net K/Z açılış ve kapanış fee'si düşülmüş değerdir. Marjin: işlem başına sabit 20 USDT (10x), en fazla 30 pozisyon, 90 coin taranır, taker fee %0.04 (açılış + kapanış, pozisyon büyüklüğü üzerinden). Gerçek emir gönderilmez; yatırım tavsiyesi değildir.</div>
 
 <script>
-const SYMS=['BTCUSDT','XAUUSDT','ETHUSDT','BNBUSDT','SOLUSDT','XRPUSDT','DOGEUSDT','ADAUSDT','AVAXUSDT','LINKUSDT','TRXUSDT','DOTUSDT','LTCUSDT','BCHUSDT','NEARUSDT','UNIUSDT','ATOMUSDT','ETCUSDT','APTUSDT','ARBUSDT','OPUSDT','FILUSDT','INJUSDT','SUIUSDT','AAVEUSDT','HBARUSDT','TONUSDT','SEIUSDT','TIAUSDT','RUNEUSDT','ICPUSDT',
-'XLMUSDT','ALGOUSDT','VETUSDT','EGLDUSDT','GRTUSDT','LDOUSDT','ENAUSDT','STXUSDT','IMXUSDT','FETUSDT','WLDUSDT','RENDERUSDT','SANDUSDT','MANAUSDT','AXSUSDT','CRVUSDT','1000PEPEUSDT','1000SHIBUSDT','JUPUSDT','ONDOUSDT'],LEV=10,START=200,FEE=.0004,TP=.15,SL=-.15,MAXPOS=10,KEY='omniquart_v1';
+const SYMS=['BTCUSDT','ETHUSDT','BNBUSDT','SOLUSDT','XRPUSDT','DOGEUSDT','ADAUSDT','AVAXUSDT','LINKUSDT','TRXUSDT','DOTUSDT','LTCUSDT','BCHUSDT','NEARUSDT','UNIUSDT','ATOMUSDT','ETCUSDT','APTUSDT','ARBUSDT','OPUSDT','FILUSDT','INJUSDT','SUIUSDT','AAVEUSDT','HBARUSDT','TONUSDT','SEIUSDT','TIAUSDT','RUNEUSDT','ICPUSDT',
+'XLMUSDT','ALGOUSDT','VETUSDT','EGLDUSDT','GRTUSDT','LDOUSDT','ENAUSDT','STXUSDT','IMXUSDT','FETUSDT','WLDUSDT','RENDERUSDT','SANDUSDT','MANAUSDT','AXSUSDT','CRVUSDT','1000PEPEUSDT','1000SHIBUSDT','JUPUSDT','ONDOUSDT',
+'THETAUSDT','CHZUSDT','GALAUSDT','APEUSDT','FLOWUSDT','KAVAUSDT','ZECUSDT','DASHUSDT','XMRUSDT','EOSUSDT','XTZUSDT','NEOUSDT','IOTAUSDT','ZILUSDT','ENJUSDT','BATUSDT','COMPUSDT','SNXUSDT','MKRUSDT','1INCHUSDT','SUSHIUSDT','YFIUSDT','RVNUSDT','CELOUSDT','ANKRUSDT','MINAUSDT','ROSEUSDT','PENDLEUSDT','DYDXUSDT','BLURUSDT','ORDIUSDT','WIFUSDT','BOMEUSDT','PYTHUSDT','STRKUSDT','ALTUSDT','JASMYUSDT','GMTUSDT','LRCUSDT','QTUMUSDT'],
+LEV=10,START=700,FEE=.0004,TP_USD=1,SL_USD=1.5,MARGIN=20,MAXPOS=30,KEY='omniquart_v2';
 const API='https://fapi.binance.com/fapi/v1/';
 let S=JSON.parse(localStorage.getItem(KEY)||'null')||fresh(),sig={},paused=false;
-function fresh(){return{bal:START,pos:{},closed:[],log:[],curve:[[Date.now(),START]]}}
+function fresh(){return{bal:START,pos:{},closed:[],fees:0,log:[],curve:[[Date.now(),START]]}}
 const $=i=>document.getElementById(i),f=(n,d=2)=>Number(n).toFixed(d),cl=n=>n>=0?'up':'dn';
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
 const log=m=>{S.log.unshift(new Date().toLocaleTimeString('tr-TR')+'  '+m);S.log=S.log.slice(0,80)};
+$('rs').textContent='Sıfırla ('+START+' USDT)';
 
 function ema(a,p){const k=2/(p+1);let e=a[0];return a.map(v=>e=v*k+e*(1-k))}
 function rsi(c,p=14){let g=0,l=0;for(let i=1;i<=p;i++){const d=c[i]-c[i-1];d>0?g+=d:l-=d}g/=p;l/=p;
@@ -69,35 +72,38 @@ async function tick(){
  try{
   const ks=await Promise.all(SYMS.map(s=>getJSON(`${API}klines?symbol=${s}&interval=5m&limit=100`).catch(()=>null)));
   SYMS.forEach((s,i)=>{if(ks[i])sig[s]=analyze(ks[i])});
-  $('st').textContent='canlı · '+new Date().toLocaleTimeString('tr-TR');
+  $('st').textContent='canlı · '+new Date().toLocaleTimeString('tr-TR')+' · '+Object.keys(sig).length+'/'+SYMS.length+' coin';
   trade();
  }catch(e){$('st').textContent='bağlantı hatası: '+e.message+' (sayfayı yerel dosya olarak aç)'}
  render()}
 
 function pnl(p,px){return(px-p.entry)*p.qty*p.dir}
-function closePos(s,why){try{const p=S.pos[s];if(!p)return;const px=sig[s]?sig[s].price:p.entry;const g=pnl(p,px),fee=px*p.qty*FEE,net=g-fee;S.bal+=p.margin+net;S.closed.push(net);delete S.pos[s];log(`KAPAT ${p.dir>0?'LONG':'SHORT'} ${s} @${f(px,4)} · ${why} · ${net>=0?'+':''}${f(net)} USDT`)}catch(e){window.alert('Close hatası: '+e.message)}}
-function open(s,dir){const margin=20;if(S.bal<margin*(1+LEV*FEE)+.01)return;
+function netPnl(p,px){return pnl(p,px)-p.fee-px*p.qty*FEE}
+function closePos(s,why){try{const p=S.pos[s];if(!p)return;const px=sig[s]?sig[s].price:p.entry;
+ const g=pnl(p,px),cf=px*p.qty*FEE,net=g-p.fee-cf;
+ S.bal+=p.margin+g-cf;S.fees+=cf;S.closed.push(net);delete S.pos[s];
+ log(`KAPAT ${p.dir>0?'LONG':'SHORT'} ${s} @${f(px,4)} · ${why} · brüt ${g>=0?'+':''}${f(g)} · fee ${f(p.fee+cf,3)} · net ${net>=0?'+':''}${f(net)} USDT`)}catch(e){window.alert('Close hatası: '+e.message)}}
+function open(s,dir){const margin=MARGIN;if(S.bal<margin*(1+LEV*FEE)+.01)return;
  const px=sig[s].price,not=margin*LEV,qty=not/px,fee=not*FEE;
- S.bal-=margin+fee;S.pos[s]={dir,entry:px,qty,margin,t:Date.now()};
- log(`AÇ ${dir>0?'LONG':'SHORT'} ${s} @${f(px,4)} · marjin ${f(margin)} · ${LEV}x · skor ${sig[s].score}`)}
+ S.bal-=margin+fee;S.fees+=fee;S.pos[s]={dir,entry:px,qty,margin,fee,t:Date.now()};
+ log(`AÇ ${dir>0?'LONG':'SHORT'} ${s} @${f(px,4)} · marjin ${f(margin)} · ${LEV}x · fee ${f(fee,3)} · skor ${sig[s].score}`)}
 function trade(){
- for(const s of Object.keys(S.pos)){if(!sig[s])continue;const p=S.pos[s],px=sig[s].price,roe=pnl(p,px)/p.margin;
-  if(roe<=-.9)closePos(s,'TASFİYE');else if(roe>=TP)closePos(s,'kâr al');else if(roe<=SL)closePos(s,'zarar kes');
-  else if(sig[s].score*p.dir<=-2)closePos(s,'ters sinyal')}
+ for(const s of Object.keys(S.pos)){if(!sig[s])continue;const p=S.pos[s],px=sig[s].price,roe=pnl(p,px)/p.margin,n=netPnl(p,px);
+  if(roe<=-.9)closePos(s,'TASFİYE');else if(n>=TP_USD)closePos(s,'kâr al');else if(n<=-SL_USD)closePos(s,'zarar kes')}
  const cand=SYMS.filter(s=>sig[s]&&!S.pos[s]&&Math.abs(sig[s].score)>=3).sort((a,b)=>Math.abs(sig[b].score)-Math.abs(sig[a].score));
  for(const s of cand){if(Object.keys(S.pos).length>=MAXPOS)break;open(s,sig[s].score>0?1:-1)}
  S.curve.push([Date.now(),equity()]);S.curve=S.curve.slice(-600);save()}
 function equity(){let e=S.bal;for(const s in S.pos){const p=S.pos[s];e+=p.margin+(sig[s]?pnl(p,sig[s].price):0)}return e}
 
 function render(){
- const eq=equity(),u=Object.keys(S.pos).reduce((a,s)=>a+(sig[s]?pnl(S.pos[s],sig[s].price):0),0),w=S.closed.filter(x=>x>0).length;
+ const eq=equity(),u=Object.keys(S.pos).reduce((a,s)=>a+(sig[s]?netPnl(S.pos[s],sig[s].price):0),0),w=S.closed.filter(x=>x>0).length;
  $('eq').textContent=f(eq);$('eq').className=cl(eq-START);$('bal').textContent=f(S.bal);
  $('upl').textContent=f(u);$('upl').className=cl(u);$('cnt').textContent=S.closed.length;
  $('wr').textContent=S.closed.length?f(w/S.closed.length*100,0)+'%':'–';
- const realized = S.closed.reduce((a,b)=>a+b,0);
- $('realizedPnL').textContent = f(realized) + (realized>=0?'+':'');
- $('pos').innerHTML=Object.keys(S.pos).map(s=>{const p=S.pos[s],px=sig[s]?sig[s].price:p.entry,g=pnl(p,px);
-  return`<tr><td>${s.replace('USDT','')}</td><td class="${p.dir>0?'up':'dn'}">${p.dir>0?'LONG':'SHORT'}</td><td>${f(p.entry,4)}</td><td>${f(px,4)}</td><td>${f(p.margin)}</td><td class="${cl(g)}">${f(g)}</td><td class="${cl(g)}">${f(g/p.margin*100,1)}%</td><td style="width:1%;white-space:nowrap;"><button class="cl-btn" data-sym="${s}">Kapat</button></td></tr>`}).join('')||'<tr><td colspan="8" class="mu">Açık pozisyon yok, sinyal bekleniyor.</td></tr>';
+ const realized=S.closed.reduce((a,b)=>a+b,0);
+ $('realizedPnL').textContent='Gerçekleşmiş net K/Z: '+(realized>=0?'+':'')+f(realized)+' USDT · Toplam fee: '+f(S.fees,3)+' USDT · Açık pozisyon: '+Object.keys(S.pos).length+'/'+MAXPOS;
+ $('pos').innerHTML=Object.keys(S.pos).map(s=>{const p=S.pos[s],px=sig[s]?sig[s].price:p.entry,n=netPnl(p,px);
+  return`<tr><td>${s.replace('USDT','')}</td><td class="${p.dir>0?'up':'dn'}">${p.dir>0?'LONG':'SHORT'}</td><td>${f(p.entry,4)}</td><td>${f(px,4)}</td><td>${f(p.margin)}</td><td class="${cl(n)}">${f(n)}</td><td class="${cl(n)}">${f(n/p.margin*100,1)}%</td><td style="width:1%;white-space:nowrap;"><button class="cl-btn" data-sym="${s}">Kapat</button></td></tr>`}).join('')||'<tr><td colspan="8" class="mu">Açık pozisyon yok, sinyal bekleniyor.</td></tr>';
  $('sig').innerHTML=SYMS.filter(s=>sig[s]).map(s=>{const x=sig[s];
   return`<tr><td>${s.replace('USDT','')}</td><td>${f(x.price,x.price<10?4:2)}</td><td>${f(x.r,0)}</td><td class="${x.tr>0?'up':'dn'}">${x.tr>0?'yukarı':'aşağı'}</td><td class="${cl(x.h)}">${x.h>0?'+':'−'}</td><td>${f(x.bb,2)}</td><td>${f(x.vr,1)}x</td><td class="${cl(x.score)}"><b>${x.score>0?'+':''}${x.score}</b></td></tr>`}).join('');
  $('log').innerHTML=S.log.map(l=>`<div>${l}</div>`).join('')||'<span class="mu">Henüz işlem yok.</span>';
@@ -109,6 +115,6 @@ function chart(){const c=$('cv'),g=c.getContext('2d'),d=S.curve,W=c.width,H=c.he
 
 $('pos').addEventListener('click',e=>{const b=e.target.closest('.cl-btn');if(!b)return;closePos(b.dataset.sym,'manuel');save();render()});
 $('tg').onclick=()=>{paused=!paused;$('tg').textContent=paused?'Devam et':'Duraklat';$('st').textContent=paused?'duraklatıldı':'canlı'};
-$('rs').onclick=()=>{if(confirm('Tüm işlemler silinip bakiye 200 USDT olacak. Emin misin?')){S=fresh();save();render()}};
+$('rs').onclick=()=>{if(confirm('Tüm işlemler silinip bakiye '+START+' USDT olacak. Emin misin?')){S=fresh();save();render()}};
 render();tick();setInterval(tick,15000);setInterval(trade,3000);
 </script></body></html>
